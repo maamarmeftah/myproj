@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>متجري المتكامل | سلة ودفع وصور</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --primary: #27ae60; --dark: #2c3e50; --bg: #f8f9fa; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Tajawal', sans-serif; }
+        body { background-color: var(--bg); color: #333; }
+        
+        /* الهيدر */
+        header { background: white; padding: 15px 5%; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); sticky; top: 0; z-index: 100; }
+        .logo { font-size: 24px; font-weight: bold; color: var(--primary); }
+        .cart-btn { background: var(--primary); color: white; padding: 10px 20px; border-radius: 50px; border: none; cursor: pointer; font-weight: bold; }
+
+        .container { max-width: 1100px; margin: 40px auto; padding: 0 20px; }
+        
+        /* شبكة المنتجات */
+        .product-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; }
+        .product-card { background: white; border-radius: 15px; padding: 20px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.05); transition: 0.3s; }
+        .product-card:hover { transform: translateY(-5px); }
+        .product-img { width: 100%; height: 200px; border-radius: 10px; object-fit: cover; margin-bottom: 15px; background: #eee; }
+        .price { color: var(--primary); font-weight: bold; font-size: 22px; margin: 10px 0; display: block; }
+        .add-btn { background: var(--dark); color: white; border: none; width: 100%; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+
+        /* صفحة الدفع والملخص */
+        .checkout-container { display: none; grid-template-columns: 1fr 1.5fr; gap: 30px; animation: fadeIn 0.5s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+        .form-group { margin-bottom: 15px; text-align: right; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .form-group input, .form-group select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; }
+        .summary-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; }
+        .total-row { font-size: 20px; font-weight: bold; color: var(--primary); margin-top: 20px; text-align: center; }
+        .btn-pay { background: var(--primary); color: white; border: none; width: 100%; padding: 15px; border-radius: 8px; font-size: 18px; cursor: pointer; margin-top: 20px; }
+        
+        .hidden { display: none; }
+        .back-btn { color: var(--primary); cursor: pointer; margin-bottom: 20px; display: inline-block; font-weight: bold; }
+    </style>
+</head>
+<body onload="displayProducts()">
+
+    <header>
+        <div class="logo">🛍️ متجري المتكامل</div>
+        <button class="cart-btn" onclick="showCheckout()">🛒 السلة (<span id="count">0</span>)</button>
+    </header>
+
+    <div class="container">
+        <div id="shop-section">
+            <h2 style="text-align: center; margin-bottom: 30px;">منتجاتنا المختارة</h2>
+            <div class="product-grid" id="main-grid">
+                </div>
+        </div>
+
+        <div id="checkout-section" class="checkout-container">
+            <div class="card">
+                <span class="back-btn" onclick="showShop()">⬅ العودة للمتجر</span>
+                <h3>ملخص المشتريات</h3>
+                <div id="summary-list"></div>
+                <div class="total-row">الإجمالي: <span id="final-total">0</span> ر.س</div>
+            </div>
+
+            <div class="card">
+                <h3>بيانات الشحن والدفع</h3>
+                <form onsubmit="processOrder(event)">
+                    <div class="form-group">
+                        <label>الاسم الكامل</label>
+                        <input type="text" id="cust-name" required placeholder="أدخل اسمك">
+                    </div>
+                    <div class="form-group">
+                        <label>رقم الجوال</label>
+                        <input type="tel" id="cust-phone" required placeholder="05xxxxxxxx">
+                    </div>
+                    <div class="form-group">
+                        <label>طريقة الدفع</label>
+                        <select id="pay-method">
+                            <option value="cod">الدفع عند الاستلام</option>
+                            <option value="card">بطاقة مدى / فيزا</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn-pay">تأكيد الطلب النهائي</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let cart = [];
+        let total = 0;
+
+        function displayProducts() {
+            const grid = document.getElementById('main-grid');
+            const products = JSON.parse(localStorage.getItem('my_products')) || [];
+
+            if (products.length === 0) {
+                grid.innerHTML = '<p style="grid-column: 1/-1; text-align:center; padding:50px;">لا توجد منتجات حالياً. أضفها من لوحة التحكم!</p>';
+                return;
+            }
+
+            grid.innerHTML = products.map(p => `
+                <div class="product-card">
+                    <img src="${p.image || 'https://via.placeholder.com/200'}" class="product-img">
+                    <h3>${p.name}</h3>
+                    <span class="price">${p.price} ر.س</span>
+                    <button class="add-btn" onclick="addToCart('${p.name}', ${p.price})">أضف للسلة</button>
+                </div>
+            `).join('');
+        }
+
+        function addToCart(name, price) {
+            cart.push({name, price});
+            total += price;
+            document.getElementById('count').innerText = cart.length;
+            alert("تمت إضافة " + name + " للسلة");
+        }
+
+        function showCheckout() {
+            if (cart.length === 0) return alert("السلة فارغة!");
+            document.getElementById('shop-section').style.display = 'none';
+            document.getElementById('checkout-section').style.display = 'grid';
+            
+            const list = document.getElementById('summary-list');
+            list.innerHTML = cart.map(item => `
+                <div class="summary-item"><span>${item.name}</span><span>${item.price} ر.س</span></div>
+            `).join('');
+            document.getElementById('final-total').innerText = total;
+        }
+
+        function showShop() {
+            document.getElementById('shop-section').style.display = 'block';
+            document.getElementById('checkout-section').style.display = 'none';
+        }
+
+        function processOrder(e) {
+            e.preventDefault();
+    
+    // استخراج أسماء المنتجات من السلة وربطها بفاصلة
+    const productNames = cart.map(item => item.name).join(' + ');
+
+    const orderData = {
+        id: Math.floor(Math.random() * 10000),
+        customerName: document.getElementById('cust-name').value,
+        customerPhone: document.getElementById('cust-phone').value,
+        products: productNames, // هنا أضفنا أسماء المنتجات المطلوبة
+        total: total,
+        status: "قيد الانتظار",
+        date: new Date().toLocaleString('ar-EG')
+    };
+
+    let orders = JSON.parse(localStorage.getItem('shop_orders')) || [];
+    orders.push(orderData);
+    localStorage.setItem('shop_orders', JSON.stringify(orders));
+
+    alert("✅ تم إرسال طلبك بنجاح! المنتجات: " + productNames);
+    cart = [];
+    total = 0;
+    document.getElementById('count').innerText = "0";
+    showShop();
+        }
+    </script>
+</body>
+</html>
