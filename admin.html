@@ -152,6 +152,13 @@
     </div>
 
     <script>
+// نظام حماية بسيط للوحة التحكم
+const password = prompt("الرجاء إدخال كلمة مرور الإدارة للدخول:");
+
+if (password !== "123456") { // يمكنك تغيير 123456 لأي كلمة تريدها
+    alert("كلمة مرور خاطئة! سيتم توجيهك للمتجر.");
+    window.location.href = "index.html"; // طرده للمتجر
+}
         // دالة التنقل بين الأقسام
         function showSection(id) {
             document.getElementById('orders-sec').style.display = 'none';
